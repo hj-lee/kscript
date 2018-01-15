@@ -20,16 +20,8 @@ resolve_symlink() (
 
 abs_kscript_path=$(resolve_symlink $(absolute_path $0))
 
-## resolve application jar path from script location and convert to windows path when using cygwin
-jarPath=$(dirname $abs_kscript_path)/kscript.jar
-
 ## expose the name of the script being run to the script itself
 export KSCRIPT_FILE="$1"
-
-if [[ $(uname) == CYGWIN* ]]; then
-    jarPath=$(cygpath -w ${jarPath})
-    [[ ! -z $KOTLIN_HOME ]] && KOTLIN_HOME=$(cygpath -w ${KOTLIN_HOME})
-fi
 
 # from 'kotlinc'
 
@@ -54,6 +46,19 @@ while [ $# -gt 0 ]; do
       ;;
   esac
 done
+
+## resolve application jar path from script location and convert to windows path when using cygwin
+jarPath=$(dirname $abs_kscript_path)/kscript.jar
+if [[ $(uname) == CYGWIN* ]]; then
+    jarPath=$(cygpath -w ${jarPath})
+    [[ ! -z $KOTLIN_HOME ]] && KOTLIN_HOME=$(cygpath -w ${KOTLIN_HOME})
+    argLength=${#kscript_args[@]}
+    for (( i=0; i<${argLength}; i++ )); do
+	if [[ -r ${kscript_args[$i]} ]]; then
+	    kscript_args[$i]=$(cygpath -w ${kscript_args[$i]})
+	fi
+    done
+fi
 
 ## run it
 exec ${JAVACMD:=java} "${java_args[@]}" -jar ${jarPath} "${kscript_args[@]}"
