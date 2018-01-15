@@ -80,6 +80,12 @@ if [[ -z $reuse_jvm ]]; then
 else
     if [[ $(uname) == CYGWIN* ]]; then
 	[[ ! -z $KOTLIN_HOME ]] && KOTLIN_HOME=$(cygpath -w ${KOTLIN_HOME})
+	argLength=${#kscript_args[@]}
+	for (( i=0; i<${argLength}; i++ )); do
+	    if [[ -r ${kscript_args[$i]} ]]; then
+		kscript_args[$i]=$(cygpath -w ${kscript_args[$i]})
+	    fi
+	done
     fi
     ## run it
     exec ${JAVACMD:=java} "${java_args[@]}" -jar ${jarPath} "${kscript_args[@]}"
