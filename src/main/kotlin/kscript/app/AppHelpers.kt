@@ -25,13 +25,20 @@ data class ProcessResult(val command: String, val exitCode: Int, val stdout: Str
     }
 }
 
+private val PREAMBLE = if (IS_WINDOWS) {
+    arrayOf("cmd", "/c", "bash", "-c")
+} else {
+    arrayOf("bash", "-c")
+}
+
+private fun prepareCmd(cmd: String) = if (IS_WINDOWS) cmd.replace("\\\\", "\\\\\\\\").replace("\"", "\\\"") else cmd
+
 fun evalBash(cmd: String, wd: File? = null,
              stdoutConsumer: Consumer<String> = StringBuilderConsumer(),
              stderrConsumer: Consumer<String> = StringBuilderConsumer()): ProcessResult {
-    return runProcess("bash", "-c", cmd,
-        wd = wd, stderrConsumer = stderrConsumer, stdoutConsumer = stdoutConsumer)
+    return runProcess(*PREAMBLE, prepareCmd(cmd),
+            wd = wd, stderrConsumer = stderrConsumer, stdoutConsumer = stdoutConsumer)
 }
-
 
 fun runProcess(cmd: String, wd: File? = null): ProcessResult {
     val parts = cmd.split("\\s".toRegex())
