@@ -32,12 +32,7 @@ fun resolveIncludes(template: File, includeContext: URI = template.parentFile.to
             if (isIncludeDirective(line)) {
                 val include = extractIncludeTarget(line)
 
-                val includeURL = when {
-                    isUrl(include) -> URL(include)
-                    include.startsWith("/") -> File(include).toURI().toURL()
-                    include.startsWith("~/") -> File(System.getenv("HOME")!! + include.substring(1)).toURI().toURL()
-                    else -> includeContext.resolve(URI(include.removePrefix("./"))).toURL()
-                }
+                val includeURL = resolveFile(include, includeContext)
 
                 // test if include was processed already (aka include duplication, see #151)
                 if (includes.map { it.path }.contains(includeURL.path)) {
@@ -61,6 +56,13 @@ fun resolveIncludes(template: File, includeContext: URI = template.parentFile.to
     }
 
     return IncludeResult(script.consolidateStructure().createTmpScript(), includes)
+}
+
+fun resolveFile(include: String, includeContext: URI) = when {
+    isUrl(include) -> URL(include)
+    include.startsWith("/") -> File(include).toURI().toURL()
+    include.startsWith("~/") -> File(System.getenv("HOME")!! + include.substring(1)).toURI().toURL()
+    else -> includeContext.resolve(URI(include.removePrefix("./"))).toURL()
 }
 
 internal fun isUrl(s: String) = s.startsWith("http://") || s.startsWith("https://")

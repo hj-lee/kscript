@@ -24,6 +24,13 @@ annotation class Include(val includePath: String)
 @Retention(AnnotationRetention.SOURCE)
 @MustBeDocumented
 @Repeatable
+annotation class Compile(val includePath: String)
+
+
+@Target(AnnotationTarget.FILE)
+@Retention(AnnotationRetention.SOURCE)
+@MustBeDocumented
+@Repeatable
 annotation class KotlinOpts(val runOptions: String)
 
 
