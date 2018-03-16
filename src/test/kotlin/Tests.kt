@@ -34,8 +34,7 @@ class Tests {
 
         val expected = listOf(
             "something:dev-1.1.0-alpha3(T2):1.2.14",
-            "de.mpicbg.scicomp:kutils:0.7",
-            "com.github.holgerbrandl:kscript-annotations:1.2"
+            "de.mpicbg.scicomp:kutils:0.7"
         )
 
         Script(lines).collectDependencies() shouldBe expected
@@ -57,8 +56,7 @@ class Tests {
         val expected = listOf(
             "de.mpicbg.scicomp.joblist:joblist-kotlin:1.1",
             "de.mpicbg.scicomp:kutils:0.7",
-            "log4j:log4j:1.2.14",
-            "com.github.holgerbrandl:kscript-annotations:1.2"
+            "log4j:log4j:1.2.14"
         )
 
         Script(lines).collectDependencies() shouldBe expected
@@ -82,8 +80,7 @@ class Tests {
 
             collectDependencies() shouldBe listOf(
                 "net.clearvolume:cleargl:2.0.1",
-                "log4j:log4j:1.2.14",
-                "com.github.holgerbrandl:kscript-annotations:1.2"
+                "log4j:log4j:1.2.14"
             )
         }
 
