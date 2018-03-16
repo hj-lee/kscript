@@ -8,6 +8,8 @@ class KotlinRunner(private val kotlinHome: String) {
         private const val RUNNER_MAIN_CLASS = "org.jetbrains.kotlin.runner.Main"
     }
 
+    private val kscriptJar = File(KotlinRunner::class.java.protectionDomain.codeSource.location.toURI().path).absolutePath
+
     private val jarFileLoader by lazy { JarFileLoader() }
 
     private val compilerBaseArgs = listOf("-cp", joinToPathString(kotlinHome, "lib", "kotlin-compiler.jar"),
@@ -28,12 +30,12 @@ class KotlinRunner(private val kotlinHome: String) {
     fun compile(compilerOpts: List<String>, targetJarFile: File, sourceFiles: List<File>, classpath: String?) {
         val baseArgs = listOf("-Xskip-runtime-version-check") +
                 compilerOpts + listOf("-d", targetJarFile.absolutePath)
-        val cpArgs = classPathArgs(classpath)
+        val cpArgs = classPathArgs(classpath, kscriptJar)
         runKotlinc(baseArgs + sourceFiles.map { it.absolutePath } + cpArgs)
     }
 
     fun runScript(scriptClassPath: String, execClassName: String, userArgs: List<String>, kotlinOpts: List<String>): Int {
-        val runnerArgs = listOf("-cp", scriptClassPath, execClassName) + userArgs
+        val runnerArgs = classPathArgs(scriptClassPath, kscriptJar) + listOf(execClassName) + userArgs
         return if (kotlinOpts.isNotEmpty()) {
             execKotlin(kotlinOpts, runnerArgs)
         } else {
@@ -45,7 +47,7 @@ class KotlinRunner(private val kotlinHome: String) {
 
     fun interactiveShell(jarFile: File, classpath: String?, compilerOpts: List<String>, kotlinOpts: List<String>) {
         val jarPath = if (jarFile.isFile) jarFile.absolutePath else null
-        val args = compilerOpts + classPathArgs(classpath, jarPath)
+        val args = compilerOpts + classPathArgs(classpath, jarPath, kscriptJar)
         if (kotlinOpts.isNotEmpty()) {
             execKotlinc(kotlinOpts, args)
         } else {
