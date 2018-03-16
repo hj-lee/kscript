@@ -12,7 +12,7 @@ class KotlinRunner(private val kotlinHome: String) {
 
     private val jarFileLoader by lazy { JarFileLoader() }
 
-    private val compilerBaseArgs = listOf("-cp", joinToPathString(kotlinHome, "lib", "kotlin-compiler.jar"),
+    private val compilerBaseArgs = listOf("-cp", File(joinToPathString(kotlinHome, "lib", "kotlin-compiler.jar")).absolutePath,
             "org.jetbrains.kotlin.cli.jvm.K2JVMCompiler")
 
 
