@@ -87,6 +87,7 @@ data class Script(val lines: List<String>, val extension: String = "kts") : Iter
             extractDependencies(it)
         }.toMutableList()
 
+        dependencies += "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${KotlinVersion.CURRENT}"
         dependencies.distinct()
     }
 

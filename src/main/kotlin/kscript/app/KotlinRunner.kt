@@ -15,7 +15,6 @@ class KotlinRunner(private val kotlinHome: String) {
     private val compilerBaseArgs = listOf("-cp", File(joinToPathString(kotlinHome, "lib", "kotlin-compiler.jar")).absolutePath,
             "org.jetbrains.kotlin.cli.jvm.K2JVMCompiler")
 
-
     private val preloaderMainMethod by lazy {
         val preloaderJar = File(joinToPathString(kotlinHome, "lib", "kotlin-preloader.jar"))
         jarFileLoader.addFile(preloaderJar)
