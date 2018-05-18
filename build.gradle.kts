@@ -40,6 +40,14 @@ val shadowJar by tasks.getting(ShadowJar::class) {
             from(File(projectDir, "src/kscript"))
             into(archivePath.parentFile)
         }
+        copy {
+            from(archivePath)
+            into(projectDir)
+        }
+        copy {
+            from(File(projectDir, "src/kscript"))
+            into(projectDir)
+        }
     }
 }
 
