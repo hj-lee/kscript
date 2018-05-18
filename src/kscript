@@ -32,8 +32,6 @@ export KSCRIPT_FILE="$1"
 
 # from 'kotlinc'
 
-[ -n "$JAVA_OPTS" ] || JAVA_OPTS="-Xmx256M -Xms32M"
-
 declare -a java_args
 declare -a kscript_args
 
@@ -66,7 +64,9 @@ while [ $# -gt 0 ]; do
 	    ;;
     esac
     if [[ -n $is_java_arg ]]; then
-	java_args=("${java_args[@]}" "$1")
+	value=$1
+	[[ $1 == -J* ]] && value=${1:2}
+	java_args=("${java_args[@]}" "$value")
     else
 	kscript_args=("${kscript_args[@]}" "$1")
     fi
@@ -76,11 +76,11 @@ done
 
 if [[ -z $reuse_jvm ]]; then
     ## run it using command substitution to have just the user process once kscript is done
-    eval "exec $(${KOTLIN_EXEC} -classpath ${jarPath} ${java_args[@]} kscript.app.KscriptKt "${kscript_args[@]}")"
+    eval "exec $(${JAVACMD:=java} -classpath ${jarPath} ${java_args[@]} kscript.app.KscriptKt "${kscript_args[@]}")"
 else
     if [[ $(uname) == CYGWIN* ]]; then
 	[[ ! -z $KOTLIN_HOME ]] && KOTLIN_HOME=$(cygpath -w ${KOTLIN_HOME})
     fi
     ## run it
-    exec ${KOTLIN_EXEC} "${java_args[@]}" -classpath ${jarPath} kscript.app.KscriptKt "${kscript_args[@]}"
+    exec ${JAVACMD:=java} "${java_args[@]}" -jar ${jarPath} "${kscript_args[@]}"
 fi
