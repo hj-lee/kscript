@@ -23,9 +23,6 @@ abs_kscript_path=$(resolve_symlink $(absolute_path $0))
 ## resolve application jar path from script location and convert to windows path when using cygwin
 jarPath=$(dirname $abs_kscript_path)/kscript.jar
 
-## prefer KOTLIN_HOME instead of PATH to resolve `kotlin` location (see #145)
-if [[ -z "$KOTLIN_HOME" ]]; then KOTLIN_EXEC="kotlin"; else KOTLIN_EXEC="$KOTLIN_HOME/bin/kotlin"; fi
-
 if [[ $(uname) == CYGWIN* ]]; then
     jarPath=$(cygpath -w ${jarPath})
     [[ ! -z $KOTLIN_HOME ]] && KOTLIN_HOME=$(cygpath -w ${KOTLIN_HOME})
@@ -41,13 +38,13 @@ declare -a kscript_args
 export KSCRIPT_FILE=
 
 while [ $# -gt 0 ]; do
-    is_java_arg=
+    java_arg=
     case "$1" in
 	-D*)
-            [[ -z $KSCRIPT_FILE ]] && is_java_arg=1
+            [[ -z $KSCRIPT_FILE ]] && java_arg="$1"
             ;;
 	-J*)
-            [[ -z $KSCRIPT_FILE ]] && is_java_arg=1
+            [[ -z $KSCRIPT_FILE ]] && java_arg="${1:2}"
             ;;
 	*)
             if [[ ! $1 =~ ^-. ]]; then
@@ -55,8 +52,8 @@ while [ $# -gt 0 ]; do
 	    fi
             ;;
     esac
-    if [[ -n $is_java_arg ]]; then
-       java_args=("${java_args[@]}" "$1")
+    if [[ -n $java_arg ]]; then	
+       java_args=("${java_args[@]}" "$java_arg")
     else
 	kscript_args=("${kscript_args[@]}" "$1")
     fi
@@ -70,9 +67,16 @@ if [[ -r $KSCRIPT_FILE ]]; then
     fi
     fileOpts=(`grep '^@file:KotlinOpts(' $KSCRIPT_FILE | sed 's/.*"\(.*\)".*/\1/'`)
     if [[ -n $fileOpts ]]; then
-	java_args=("${java_args[@]}" "${fileOpts[@]}")
+	for arg in $fileOpts; do
+	    java_arg=$arg
+	    case $arg in
+		-J*)
+		    java_arg="${arg:2}"
+	    esac
+	    java_args=("${java_args[@]}" "$java_arg")
+	done
     fi
 fi
 
 ## run it
-exec ${KOTLIN_EXEC} "${java_args[@]}" -classpath ${jarPath} kscript.app.KscriptKt "${kscript_args[@]}"
+exec ${JAVACMD:=java} "${java_args[@]}" -jar ${jarPath} "${kscript_args[@]}"
