@@ -159,6 +159,13 @@ data class Script(val lines: List<String>, val extension: String = "kts") : Iter
                 .map { it.replaceFirst(annotationPrefix, "").split(")")[0]}
                 .map { it.trim(' ', '"')}
     }
+
+    val jars: List<String> by lazy {
+        val annotationPrefix = "^@file:IncludeJar[(]".toRegex()
+        lines.filter { it.contains(annotationPrefix) }
+                .map { it.replaceFirst(annotationPrefix, "").split(")")[0]}
+                .map { it.trim(' ', '"')}
+    }
 }
 
 
