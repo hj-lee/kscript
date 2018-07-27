@@ -228,7 +228,12 @@ fun prepareJarAndRun(KOTLIN_HOME: String,
         """${script.pckg ?: ""}${script.entryPoint ?: "${className}Kt"}"""
     }
 
-    var currentClasspath: String? = listOfNotNull(dependsClasspath, prevClasspath).joinToString(CP_SEPARATOR_CHAR)
+    val jars = script.jars.map {
+        val url = resolveFile(it, includeContext)
+        url.file
+    }.joinToString(":")
+
+    var currentClasspath: String? = listOfNotNull(jars, dependsClasspath, prevClasspath).joinToString(CP_SEPARATOR_CHAR)
     if (currentClasspath.isNullOrBlank()) currentClasspath = null
 
     script.compiles.forEach {
