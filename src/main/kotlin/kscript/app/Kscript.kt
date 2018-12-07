@@ -232,48 +232,22 @@ fun prepareJarAndRun(KOTLIN_HOME: String,
     if (currentClasspath.isNullOrBlank()) currentClasspath = null
 
     script.compiles.forEach {
-        //        System.err.println("$it - $includeContext")
         val url = resolveFile(it, includeContext)
         val file = url.file
-//        System.err.println("$url - $file")
 
-        currentClasspath = prepareJarAndRun(KOTLIN_HOME, kotlinRunner, executor, file,
+        // only top call maintains docopt
+        currentClasspath = prepareJarAndRun(KOTLIN_HOME, kotlinRunner, executor, file, docopt = null,
                 loggingEnabled = loggingEnabled, enableSupportApi = enableSupportApi, prevClasspath = currentClasspath)
     }
-
-//    val compiledJarClasspath = script.compiles.map {
-//        System.err.println("$it - $includeContext")
-//        val url = resolveFile(it, includeContext)
-//        val file = url.file
-//        System.err.println("$url - $file")
-//
-//        prepareJarAndRun(KOTLIN_HOME, kotlinRunner, file,
-//                loggingEnabled = loggingEnabled, enableSupportApi = enableSupportApi, prevClasspath = prevClasspath)
-//    }.joinToString(CP_SEPARATOR_CHAR)
 
     val classpath = currentClasspath
 
     // If scriplet jar ist not cached yet, build it
     if (!jarFile.isFile) {
         // create main-wrapper for kts scripts
-        val wrapperFile = if (scriptFileExt == "kts") {
-            val mainKotlin = File(createTempDir("kscript"), execClassName + ".kt")
-
-            val classReference = (script.pckg ?: "") + className
-
-            mainKotlin.writeText("""
-            class Main_${className}{
-                companion object {
-                    @JvmStatic
-                    fun main(args: Array<String>) {
-                        val script = Main_${className}::class.java.classLoader.loadClass("${classReference}")
-                        script.getDeclaredConstructor(Array<String>::class.java).newInstance(args);
-                    }
-                }
-            }
-            """.trimIndent())
-            mainKotlin
-        } else null
+        val wrapperFile =
+                if (scriptFileExt == "kts") generateWrapperFile(execClassName, script, className)
+                else null
         val sourceFiles = listOfNotNull(scriptFile, wrapperFile)
         val compilerExitCode = kotlinRunner.compile(compilerOpts, jarFile, sourceFiles, classpath)
         errorIf(compilerExitCode != 0) { "compilation of '$scriptResource' failed\n" }
@@ -306,6 +280,25 @@ fun prepareJarAndRun(KOTLIN_HOME: String,
         exitProcess(executor.runScript(scriptClassPath, execClassName, userArgs, kotlinOpts))
     }
     return listOfNotNull(classpath, jarFile.absolutePath).joinToString(CP_SEPARATOR_CHAR)
+}
+
+private fun generateWrapperFile(execClassName: String, script: Script, className: String): File {
+    val mainKotlin = File(createTempDir("kscript"), execClassName + ".kt")
+
+    val classReference = (script.pckg ?: "") + className
+
+    mainKotlin.writeText("""
+            class Main_${className}{
+                companion object {
+                    @JvmStatic
+                    fun main(args: Array<String>) {
+                        val script = Main_${className}::class.java.classLoader.loadClass("${classReference}")
+                        script.getDeclaredConstructor(Array<String>::class.java).newInstance(args);
+                    }
+                }
+            }
+            """.trimIndent())
+    return mainKotlin
 }
 
 private fun selfUpdate(executor: Executor) {
