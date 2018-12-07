@@ -44,8 +44,9 @@ Options:
  -s --silent             Suppress status logging to stderr
  --package               Package script and dependencies into self-dependent binary
  --add-bootstrap-header  Prepend bash header that installs kscript if necessary
- -J<arg>                 -J is stripped and <arg> passed to Java as-is (if no KOTLIN_OPTS is given)
- -Dname=value            Set a system JVM property (if no KOTLIN_OPTS is given)
+ --reuse-jvm             Reuse kscript JVM for script excution (Experimental)
+ -J<arg>                 -J is stripped and <arg> passed to Java as-is (if --reuse-jvm is used and no KOTLIN_OPTS is given)
+ -Dname=value            Set a system JVM property (if --reuse-jvm is used and no KOTLIN_OPTS is given)
 
 Copyright : 2017 Holger Brandl
 License   : MIT
@@ -56,7 +57,7 @@ Website   : https://github.com/holgerbrandl/kscript
 // see https://stackoverflow.com/questions/585534/what-is-the-best-way-to-find-the-users-home-directory-in-java
 // See #146 "allow kscript cache dir to be configurable" for details
 val KSCRIPT_CACHE_DIR = System.getenv("KSCRIPT_CACHE_DIR")?.let { File(it) }
-    ?: File(System.getProperty("user.home")!!, ".kscript")
+        ?: File(System.getProperty("user.home")!!, ".kscript")
 
 // use lazy here prevent empty dirs for regular scripts https://github.com/holgerbrandl/kscript/issues/130
 val SCRIPT_TEMP_DIR by lazy { createTempDir() }
@@ -73,6 +74,7 @@ private val BOOTSTRAP_HEADER = """
 
     """.trimIndent().lines()
 
+var reuseJvmFlag = false
 
 fun main(args: Array<String>) {
     // skip org.docopt for version and help to allow for lazy version-check
@@ -87,6 +89,8 @@ fun main(args: Array<String>) {
     val kscriptArgs = args.take(args.size - userArgs.size)
 
     val docopt = DocOptWrapper(kscriptArgs, USAGE)
+    reuseJvmFlag = docopt.getBoolean(("reuse-jvm"))
+
     val loggingEnabled = !docopt.getBoolean("silent")
 
 
@@ -103,13 +107,23 @@ fun main(args: Array<String>) {
         quit(0)
     }
 
+    // infer KOTLIN_HOME if not set
+    val KOTLIN_HOME = System.getenv("KOTLIN_HOME") ?: guessKotlinHome() ?: run {
+        errorMsg("KOTLIN_HOME is not set and could not be inferred from context")
+        quit(1)
+    }
+
+    val kotlinRunner = KotlinRunner(KOTLIN_HOME)
+    val executor =
+            if (reuseJvmFlag) kotlinRunner
+            else PrintlnExecutor()
+
     // optionally self-update kscript ot the newest version
     // (if not local copy is not being maintained by sdkman)
     if (docopt.getBoolean(("self-update"))) {
-        selfUpdate()
+        selfUpdate(executor)
         quit(0)
     }
-
 
     // Resolve the script resource argument into an actual file
     val scriptResource = docopt.getString("script")
@@ -157,10 +171,9 @@ fun main(args: Array<String>) {
     val dependencies = (script.collectDependencies() + Script(rawScript).collectDependencies()).distinct()
     val customRepos = (script.collectRepos() + Script(rawScript).collectRepos()).distinct()
 
-
     //  Create temporary dev environment
     if (docopt.getBoolean("idea")) {
-        evalBash(launchIdeaWithKscriptlet(rawScript, dependencies, customRepos, includeURLs))
+        executor.execute(launchIdeaWithKscriptlet(rawScript, dependencies, customRepos, includeURLs))
         exitProcess(0)
     }
 
@@ -193,10 +206,10 @@ fun main(args: Array<String>) {
     // Capitalize first letter and get rid of dashes (since this is what kotlin compiler is doing for the wrapper to create a valid java class name)
     // For valid characters see https://stackoverflow.com/questions/4814040/allowed-characters-in-filename
     val className = scriptFile.nameWithoutExtension
-        .replace("[^A-Za-z0-9]".toRegex(), "_")
-        .capitalize()
-        // also make sure that it is a valid identifier by avoiding an initial digit (to stay in sync with what the kotlin script compiler will do as well)
-        .let { if ("^[0-9]".toRegex().containsMatchIn(it)) "_" + it else it }
+            .replace("[^A-Za-z0-9]".toRegex(), "_")
+            .capitalize()
+            // also make sure that it is a valid identifier by avoiding an initial digit (to stay in sync with what the kotlin script compiler will do as well)
+            .let { if ("^[0-9]".toRegex().containsMatchIn(it)) "_" + it else it }
 
 
     // Define the entrypoint for the scriptlet jar
@@ -206,15 +219,6 @@ fun main(args: Array<String>) {
         // extract package from kt-file
         """${script.pckg ?: ""}${entryDirective ?: "${className}Kt"}"""
     }
-
-
-    // infer KOTLIN_HOME if not set
-    val KOTLIN_HOME = System.getenv("KOTLIN_HOME") ?: guessKotlinHome() ?: run {
-        errorMsg("KOTLIN_HOME is not set and could not be inferred from context")
-        quit(1)
-    }
-
-    val kotlinRunner = KotlinRunner(KOTLIN_HOME)
 
     // If scriplet jar ist not cached yet, build it
     if (!jarFile.isFile) {
@@ -249,7 +253,8 @@ fun main(args: Array<String>) {
             mainKotlin
         } else null
         val sourceFiles = listOfNotNull(scriptFile, wrapperFile)
-        kotlinRunner.compile(compilerOpts, jarFile, sourceFiles, classpath)
+        val compilerExitCode = kotlinRunner.compile(compilerOpts, jarFile, sourceFiles, classpath)
+        errorIf(compilerExitCode != 0) { "compilation of '$scriptResource' failed\n" }
     }
 
     //if requested try to package the into a standalone binary
@@ -268,17 +273,17 @@ fun main(args: Array<String>) {
     //  Optionally enter interactive mode
     if (docopt.getBoolean("interactive")) {
         System.err.println("Creating REPL from ${scriptFile}")
-        kotlinRunner.interactiveShell(jarFile, classpath, compilerOpts, kotlinOpts)
+        executor.interactiveShell(jarFile, classpath, compilerOpts, kotlinOpts)
         exitProcess(0)
     }
 
     val scriptClassPath = listOf(jarFile, joinToPathString(KOTLIN_HOME, "lib", "kotlin-script-runtime.jar"), classpath).joinToString(CP_SEPARATOR_CHAR)
 
-    exitProcess(kotlinRunner.runScript(scriptClassPath, execClassName, userArgs, kotlinOpts))
+    exitProcess(executor.runScript(scriptClassPath, execClassName, userArgs, kotlinOpts))
 }
 
-private fun selfUpdate() {
-    if (true || evalBash("which kscript | grep .sdkman").stdout.isNotBlank()) {
+private fun selfUpdate(executor: Executor) {
+    if (evalBash("which kscript | grep .sdkman").stdout.isNotBlank()) {
         info("Installing latest version of kscript...")
         // create update script
         val updateScript = File(KSCRIPT_CACHE_DIR, "self_update.sh").apply {
@@ -291,7 +296,7 @@ private fun selfUpdate() {
             setExecutable(true)
         }
 
-        evalBash(updateScript.absolutePath)
+        executor.execute(updateScript.absolutePath)
     } else {
         info("Self-update is currently just supported via sdkman.")
         info("Please download a new release from https://github.com/holgerbrandl/kscript")
@@ -422,4 +427,4 @@ private fun resolvePreambles(rawScript: File, enableSupportApi: Boolean): File {
 
 
 private fun postProcessScript(inputFile: File?, includeContext: URI): IncludeResult =
-    resolveIncludes(inputFile!!, includeContext)
+        resolveIncludes(inputFile!!, includeContext)

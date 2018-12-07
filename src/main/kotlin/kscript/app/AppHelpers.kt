@@ -121,6 +121,9 @@ fun errorIf(value: Boolean, lazyMessage: () -> Any) {
 }
 
 fun quit(status: Int): Nothing {
+    if (!reuseJvmFlag) {
+        println(if (status == 0) "true" else "false")
+    }
     exitProcess(status)
 }
 

@@ -2,7 +2,7 @@ package kscript.app
 
 import java.io.File
 
-class KotlinRunner(private val kotlinHome: String) {
+class KotlinRunner(private val kotlinHome: String) : Executor {
     companion object {
         private const val PRELOADER_CLASS = "org.jetbrains.kotlin.preloading.Preloader"
         private const val RUNNER_MAIN_CLASS = "org.jetbrains.kotlin.runner.Main"
@@ -25,14 +25,14 @@ class KotlinRunner(private val kotlinHome: String) {
         jarFileLoader.loadClass(RUNNER_MAIN_CLASS).getDeclaredMethod("main", Array<String>::class.java)
     }
 
-    fun compile(compilerOpts: List<String>, targetJarFile: File, sourceFiles: List<File>, classpath: String?) {
+    fun compile(compilerOpts: List<String>, targetJarFile: File, sourceFiles: List<File>, classpath: String?): Int {
         val baseArgs = listOf("-Xskip-runtime-version-check") +
                 compilerOpts + listOf("-d", targetJarFile.absolutePath)
         val cpArgs = classPathArgs(classpath)
-        runKotlinc(baseArgs + sourceFiles.map { it.absolutePath } + cpArgs)
+        return execKotlinc(listOf(), baseArgs + sourceFiles.map { it.absolutePath } + cpArgs)
     }
 
-    fun runScript(scriptClassPath: String, execClassName: String, userArgs: List<String>, kotlinOpts: List<String>): Int {
+    override fun runScript(scriptClassPath: String, execClassName: String, userArgs: List<String>, kotlinOpts: List<String>): Int {
         val runnerArgs = listOf("-cp", scriptClassPath, execClassName) + userArgs
         return if (kotlinOpts.isNotEmpty()) {
             execKotlin(kotlinOpts, runnerArgs)
@@ -43,7 +43,7 @@ class KotlinRunner(private val kotlinHome: String) {
         }
     }
 
-    fun interactiveShell(jarFile: File, classpath: String?, compilerOpts: List<String>, kotlinOpts: List<String>) {
+    override fun interactiveShell(jarFile: File, classpath: String?, compilerOpts: List<String>, kotlinOpts: List<String>) {
         val jarPath = if (jarFile.isFile) jarFile.absolutePath else null
         val args = compilerOpts + classPathArgs(classpath, jarPath)
         if (kotlinOpts.isNotEmpty()) {
@@ -99,5 +99,9 @@ class KotlinRunner(private val kotlinHome: String) {
                     .apply { environment()["KOTLIN_RUNNER"] = "" }
                     .start()
                     .waitFor()
+
+    override fun execute(cmdLine: String) {
+        evalBash(cmdLine)
+    }
 }
 
