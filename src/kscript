@@ -45,6 +45,10 @@ done
 
 script_arg_found=
 
+for opt in $KSCRIPT_OPTS; do
+    [[ $opt == --reuse-jvm ]] && reuse_jvm=1
+done
+
 while [ $# -gt 0 ]; do
     is_java_arg=
     case "$1" in
