@@ -1,13 +1,6 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 plugins {
     kotlin("jvm") version "1.3.10"
-    id("com.github.johnrengelman.shadow") version "2.0.4"
-    application
-}
-
-application {
-    mainClassName = "kscript.app.KscriptKt"
+    id("maven")
 }
 
 group = "com.github.holgerbrandl.kscript.launcher"
@@ -35,32 +28,4 @@ dependencies {
 
 repositories {
     jcenter()
-}
-
-val shadowJar by tasks.getting(ShadowJar::class) {
-    // set empty string to classifier and version to get predictable jar file name: build/libs/kscript.jar
-    archiveName = "kscript.jar"
-    doLast {
-        copy {
-            from(File(projectDir, "src/kscript"))
-            into(archivePath.parentFile)
-        }
-        copy {
-            from(archivePath)
-            into(projectDir)
-        }
-        copy {
-            from(File(projectDir, "src/kscript"))
-            into(projectDir)
-        }
-    }
-}
-
-// Disable standard jar task to avoid building non-shadow jars
-val jar by tasks.getting {
-    enabled = false
-}
-// Build shadowJar when
-val assemble by tasks.getting {
-    dependsOn(shadowJar)
 }
