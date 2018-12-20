@@ -258,13 +258,13 @@ fun main(args: Array<String>) {
     //  Optionally enter interactive mode
     if (docopt.getBoolean("interactive")) {
         System.err.println("Creating REPL from ${scriptFile}")
-        kotlinRunner.interactiveShell(jarFile, classpath, compilerOpts, kotlinOpts)
+        kotlinRunner.interactiveShell(jarFile, classpath, compilerOpts)
         exitProcess(0)
     }
 
     val scriptClassPath = listOf(jarFile, joinToPathString(KOTLIN_HOME, "lib", "kotlin-script-runtime.jar"), classpath).joinToString(CP_SEPARATOR_CHAR)
 
-    exitProcess(kotlinRunner.runScript(scriptClassPath, execClassName, userArgs, kotlinOpts))
+    exitProcess(kotlinRunner.runScript(scriptClassPath, execClassName, userArgs))
 }
 
 
