@@ -54,5 +54,11 @@ val jar by tasks.getting {
 }
 // Build shadowJar when
 val assemble by tasks.getting {
-    dependsOn(shadowJar)
+    dependsOn(shadowJar, ":kscript-annotations:assemble")
+    doLast {
+        copy {
+            from(File(projectDir, "kscript-annotations/build/libs/kscript-annotations.jar"))
+            into(shadowJar.archivePath.parentFile)
+        }
+    }
 }
